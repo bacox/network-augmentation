@@ -195,7 +195,7 @@ def train_variant(conv, fcl, args):
             if epoch <= resume_epoch:
                 continue
 
-        train(epoc=epoch, **train_params)
+        train(epoch=epoch, **train_params)
         acc = eval_training(epoch=epoch, **train_params)
 
         #start to save best performance model after learning rate decay to 0.01
