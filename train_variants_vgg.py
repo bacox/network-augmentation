@@ -1,11 +1,4 @@
-# train.py
-#!/usr/bin/env	python3
-
-""" train network using pytorch
-
-author baiyu
-"""
-
+import itertools
 import os
 import sys
 import argparse
@@ -21,14 +14,21 @@ import torchvision.transforms as transforms
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
 from conf import settings
-from utils import get_network, get_training_dataloader, get_test_dataloader, WarmUpLR, \
-    most_recent_folder, most_recent_weights, last_epoch, best_acc_weights
-from vgg_variant import conv_variant_builder, classifier_builder, construct_vgg_variant
+from utils import get_training_dataloader, get_test_dataloader, WarmUpLR, most_recent_folder, best_acc_weights, \
+    most_recent_weights, last_epoch
+from vgg_variant import construct_vgg_variant
 
-
-def train(epoch):
+# needed for training
+# {
+#   network
+#   warmup_scheduler
+#   optimizer
+#   loss_function
+#   writer
+#
+# }
+def train(epoch, net, warmup_scheduler, loss_function, optimizer, writer):
 
     start = time.time()
     net.train()
@@ -76,7 +76,7 @@ def train(epoch):
     print('epoch {} training time consumed: {:.2f}s'.format(epoch, finish - start))
 
 @torch.no_grad()
-def eval_training(epoch=0, tb=True):
+def eval_training(net, warmup_scheduler, loss_function, optimizer, writer, epoch=0, tb=True):
 
     start = time.time()
     net.eval()
@@ -115,62 +115,17 @@ def eval_training(epoch=0, tb=True):
 
     return correct.float() / len(cifar100_test_loader.dataset)
 
-if __name__ == '__main__':
 
+def train_variant(conv, fcl, args):
 
-    print('Pre script')
-
-    conv_512_block_variations = [1, 2, 3, 4]
-    fcl_variations = [2,3,4,5,6]
-    print(conv_variant_builder(1))
-    print(conv_variant_builder(2))
-    print(conv_variant_builder(3))
-    print(conv_variant_builder(4))
-    print(conv_variant_builder(6))
-    print(conv_variant_builder(7))
-
-    cls = classifier_builder(4,10)
-    print(cls)
-    net, arch_name = construct_vgg_variant(1, 1, True, False, False)
-    print(net)
-    exit(0)
-
-
-
-
-
-    # Pre script code
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-net', type=str, required=True, help='net type')
-    parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
-    parser.add_argument('-b', type=int, default=128, help='batch size for dataloader')
-    parser.add_argument('-warm', type=int, default=1, help='warm up training phase')
-    parser.add_argument('-lr', type=float, default=0.1, help='initial learning rate')
-    parser.add_argument('-resume', action='store_true', default=False, help='resume training')
-    args = parser.parse_args()
-
-    net = get_network(args)
-
-    #data preprocessing:
-    cifar100_training_loader = get_training_dataloader(
-        settings.CIFAR100_TRAIN_MEAN,
-        settings.CIFAR100_TRAIN_STD,
-        num_workers=4,
-        batch_size=args.b,
-        shuffle=True
-    )
-
-    cifar100_test_loader = get_test_dataloader(
-        settings.CIFAR100_TRAIN_MEAN,
-        settings.CIFAR100_TRAIN_STD,
-        num_workers=4,
-        batch_size=args.b,
-        shuffle=True
-    )
+    net = construct_vgg_variant(conv_variant=conv, fcl_variant=fcl, batch_norm=True, progress=True)
+    if args.gpu: #use_gpu
+        net = net.cuda()
 
     loss_function = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-    train_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=settings.MILESTONES, gamma=0.2) #learning rate decay
+    train_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=settings.MILESTONES,
+                                                     gamma=0.2)  # learning rate decay
     iter_per_epoch = len(cifar100_training_loader)
     warmup_scheduler = WarmUpLR(optimizer, iter_per_epoch * args.warm)
 
@@ -223,8 +178,15 @@ if __name__ == '__main__':
 
         resume_epoch = last_epoch(os.path.join(settings.CHECKPOINT_PATH, args.net, recent_folder))
 
-
-    for epoch in range(1, settings.EPOCH):
+    train_params = {
+        'net': net,
+        'warmup_scheduler': warmup_scheduler,
+        'loss_function': loss_function,
+        'optimizer':optimizer,
+        'writer': writer
+    }
+    # for epoch in range(1, settings.EPOCH):
+    for epoch in range(1, 2):
         if epoch > args.warm:
             train_scheduler.step(epoch)
 
@@ -232,8 +194,8 @@ if __name__ == '__main__':
             if epoch <= resume_epoch:
                 continue
 
-        train(epoch)
-        acc = eval_training(epoch)
+        train(epoc=epoch, **train_params)
+        acc = eval_training(epoch=epoch, **train_params)
 
         #start to save best performance model after learning rate decay to 0.01
         if epoch > settings.MILESTONES[1] and best_acc < acc:
@@ -245,3 +207,43 @@ if __name__ == '__main__':
             torch.save(net.state_dict(), checkpoint_path.format(net=args.net, epoch=epoch, type='regular'))
 
     writer.close()
+
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    # parser.add_argument('-net', type=str, required=True, help='net type')
+    parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
+    parser.add_argument('-b', type=int, default=128, help='batch size for dataloader')
+    parser.add_argument('-warm', type=int, default=1, help='warm up training phase')
+    parser.add_argument('-lr', type=float, default=0.1, help='initial learning rate')
+    parser.add_argument('-resume', action='store_true', default=False, help='resume training')
+    args = parser.parse_args()
+
+    # data preprocessing:
+    cifar100_training_loader = get_training_dataloader(
+        settings.CIFAR100_TRAIN_MEAN,
+        settings.CIFAR100_TRAIN_STD,
+        num_workers=4,
+        batch_size=args.b,
+        shuffle=True
+    )
+
+    cifar100_test_loader = get_test_dataloader(
+        settings.CIFAR100_TRAIN_MEAN,
+        settings.CIFAR100_TRAIN_STD,
+        num_workers=4,
+        batch_size=args.b,
+        shuffle=True
+    )
+
+
+    conv_variants = [1,2,3,4]
+    fcl_variants = [2,3,4,5,6]
+    combinations = list(itertools.product(*[conv_variants, fcl_variants]))
+
+    for conv, fcl in combinations:
+        print(f'Starting training variant c{conv}, f{fcl}')
+        train_variant(conv, fcl, args)
+        break
