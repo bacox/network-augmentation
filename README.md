@@ -11,6 +11,11 @@ This is my experiment eviroument
 - tensorboard 2.2.2(optional)
 `pip3 install tensorboard`
 
+Full install command:
+```bash
+pip3 install tensorboard torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
+```
+
 
 ## Usage
 
