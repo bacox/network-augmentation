@@ -118,7 +118,7 @@ def eval_training(net, warmup_scheduler, loss_function, optimizer, writer, epoch
 
 def train_variant(conv, fcl, args):
 
-    net = construct_vgg_variant(conv_variant=conv, fcl_variant=fcl, batch_norm=True, progress=True)
+    net, arch_name = construct_vgg_variant(conv_variant=conv, fcl_variant=fcl, batch_norm=True, progress=True, pretrained=False)
     if args.gpu: #use_gpu
         net = net.cuda()
 
@@ -186,7 +186,7 @@ def train_variant(conv, fcl, args):
         'writer': writer
     }
     # for epoch in range(1, settings.EPOCH):
-    for epoch in range(1, 2):
+    for epoch in [1]:# range(1, 2):
         if epoch > args.warm:
             train_scheduler.step(epoch)
 
