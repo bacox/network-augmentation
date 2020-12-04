@@ -119,6 +119,7 @@ def eval_training(net, warmup_scheduler, loss_function, optimizer, writer, epoch
 def train_variant(conv, fcl, args):
 
     net, arch_name = construct_vgg_variant(conv_variant=conv, fcl_variant=fcl, batch_norm=True, progress=True, pretrained=False)
+    args.net = arch_name
     if args.gpu: #use_gpu
         net = net.cuda()
 
