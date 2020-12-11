@@ -19,7 +19,8 @@ CIFAR100_TRAIN_STD = (0.2673342858792401, 0.2564384629170883, 0.2761504713256840
 CHECKPOINT_PATH = 'checkpoint'
 
 #total training epoches
-EPOCH = 200
+# EPOCH = 200
+EPOCH = 2
 MILESTONES = [60, 120, 160]
 
 #initial learning rate
@@ -33,7 +34,8 @@ TIME_NOW = datetime.now().strftime(DATE_FORMAT)
 LOG_DIR = 'runs'
 
 #save weights file per SAVE_EPOCH epoch
-SAVE_EPOCH = 10
+# SAVE_EPOCH = 10
+SAVE_EPOCH = 1
 
 
 

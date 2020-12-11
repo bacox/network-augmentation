@@ -93,10 +93,19 @@ cfgs: Dict[str, List[Union[str, int]]] = {
     'E': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M'],
 }
 
-def conv_variant_builder(size :int):
-    stem = [64, 'M', 128, 'M', 256, 256, 'M']
-    block512 = [ 512, 512, 'M']
-    return stem + block512* size
+def conv_variant_builder(size: int):
+    skeleton = [64, 'M', 128, 'M', 256, 'M', 512, 'M', 512, 'M']
+    skeleton = [64, 128, 256, 512, 512]
+    conv_part = []
+    for item in skeleton:
+        conv_part += [item]*size + ['M']
+    return conv_part
+
+
+# def conv_variant_builder(size :int):
+#     stem = [64, 'M', 128, 'M', 256, 256, 'M']
+#     block512 = [ 512, 512, 'M']
+#     return stem + block512* size
 
 def classifier_builder(size: int, num_classes: int):
     size = np.max([1, size - 1])
@@ -118,7 +127,7 @@ def classifier_builder(size: int, num_classes: int):
 
 
 def construct_vgg_variant(conv_variant: int, fcl_variant: int, batch_norm: bool, pretrained: bool, progress: bool, **kwargs: Any) -> VGG:
-    arch_name = f'vgg_c{conv_variant}_f{fcl_variant}'
+    arch_name = f'vgg-c{conv_variant}-f{fcl_variant}'
     features= conv_variant_builder(conv_variant)
 
     if pretrained:
@@ -128,6 +137,7 @@ def construct_vgg_variant(conv_variant: int, fcl_variant: int, batch_norm: bool,
         state_dict = load_state_dict_from_url(model_urls[arch_name],
                                               progress=progress)
         model.load_state_dict(state_dict)
+    print('Model fetched')
     return model, arch_name
 
 def _vgg(arch: str, cfg: str, batch_norm: bool, pretrained: bool, progress: bool, **kwargs: Any) -> VGG:
