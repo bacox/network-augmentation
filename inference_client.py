@@ -8,6 +8,8 @@ from utils import get_test_dataloader
 from vgg_variant import construct_vgg_variant
 import requests
 import argparse
+# import resource
+
 
 def load_weights_from_server(model_path: str):
     server_address = 'http://0.0.0.0:5000'
@@ -18,7 +20,20 @@ def load_weights_from_server(model_path: str):
 
     return state_dict
 
+
+def nuts(n):
+    yield n
+    yield from nuts(n)
+
+def scoped_memory_track():
+    import resource
+    # a CPU-bound task
+    for i in range(10 ** 8):
+        _ = 1 + 1
+    print(resource.getrusage(resource.RUSAGE_SELF))
+
 def test_model(conv: int, fcl: int, model_path: str, args, gpu: bool = False):
+    import resource
     # load dataset
     cifar100_test_loader = get_test_dataloader(
         settings.CIFAR100_TRAIN_MEAN,
@@ -36,6 +51,7 @@ def test_model(conv: int, fcl: int, model_path: str, args, gpu: bool = False):
     correct_1 = 0.0
     correct_5 = 0.0
     total = 0
+
     start = time.time()
     with torch.no_grad():
         for n_iter, (image, label) in enumerate(cifar100_test_loader):
@@ -57,30 +73,38 @@ def test_model(conv: int, fcl: int, model_path: str, args, gpu: bool = False):
             # compute top1
             correct_1 += correct[:, :1].sum()
 
+            # break
+
     end = time.time()
+
+    # peak = p.memory_info().peak_wset
+    # print(peak)
     top1 = 1 - correct_1 / len(cifar100_test_loader.dataset)
     top5 = 1 - correct_5 / len(cifar100_test_loader.dataset)
     if gpu:
         print('GPU INFO.....')
-        print(torch.cuda.memory_summary(device=torch.device('cuda')), end='')
-    else:
-        print('CPU INFO.....')
-        print(torch.cuda.memory_summary(device=torch.device('cpu')), end='')
+        print(torch.cuda.memory_summary(), end='')
+    # else:
+    #     print('CPU INFO.....')
+    #     print(torch.cuda.memory_summary(device=torch.device('cpu')), end='')
     print()
     print("Top 1 err: ", top1)
     print("Top 5 err: ", top5)
     print("Parameter numbers: {}".format(sum(p.numel() for p in net.parameters())))
     duration = end - start
     print(f'Duration for inference is {duration} seconds')
+    max_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    print(f'Max memory is {max_memory}')
 
+    scoped_memory_track()
     # Data to save:
     # - top1 acc
     # - top5 acc
     # - Duration
     # - Memory used
     inference_result = {
-        'top1_acc': top1,
-        'top5_acc': top5,
+        'top1_acc': float(top1),
+        'top5_acc': float(top5),
         'duration_s': duration,
         'used_memory': 1
     }
@@ -120,10 +144,10 @@ def process_loop(server: str, gpu: bool = False):
             'b': 128,
             'gpu': False
         }
-        test_model(conv=conv, fcl=fcl, model_path=model_path, args=args, gpu=gpu)
+        inference_result = test_model(conv=conv, fcl=fcl, model_path=model_path, args=args, gpu=gpu)
 
         # Save result to server
-        data['model_results'] = {'acc': 0.9}
+        data['model_results'] = inference_result
         data['path_to_weights'] = data['model_url']
         save_result_to_server(server, result_data=data)
     else:

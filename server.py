@@ -143,10 +143,11 @@ def next_model():
 
 
 
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
+# @app.route('/')
+# def hello_world():
+#     return 'Hello, World!'
 
+@app.route('/')
 @app.route('/models')
 def page_models():
     user = {'username': 'Miguel'}
