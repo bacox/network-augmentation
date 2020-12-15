@@ -16,6 +16,7 @@
             <th>Model Params</th>
             <th>Model results</th>
             <th>Path to Weights</th>
+            <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -29,6 +30,9 @@
           <td>{{ model.model_params}}</td>
           <td>{{ model.model_results}}</td>
           <td>{{ model.path_to_weights}}</td>
+          <!-- <a href="#" class="btn btn-primary btn-lg active" role="button">Primary link</a> -->
+
+          <td><a href="#reset-state/{{ model.id }}" class="btn btn-warning" role="button" disabled="disabled">Reset state</a></td>
         </tr>
         {% endfor %}
       </tbody>

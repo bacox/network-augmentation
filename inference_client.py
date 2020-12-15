@@ -7,7 +7,7 @@ from conf import settings
 from utils import get_test_dataloader
 from vgg_variant import construct_vgg_variant
 import requests
-
+import argparse
 
 def load_weights_from_server(model_path: str):
     server_address = 'http://0.0.0.0:5000'
@@ -18,7 +18,7 @@ def load_weights_from_server(model_path: str):
 
     return state_dict
 
-def test_model(conv: int, fcl: int, model_path: str, args):
+def test_model(conv: int, fcl: int, model_path: str, args, gpu: bool = False):
     # load dataset
     cifar100_test_loader = get_test_dataloader(
         settings.CIFAR100_TRAIN_MEAN,
@@ -36,12 +36,12 @@ def test_model(conv: int, fcl: int, model_path: str, args):
     correct_1 = 0.0
     correct_5 = 0.0
     total = 0
-
+    start = time.time()
     with torch.no_grad():
         for n_iter, (image, label) in enumerate(cifar100_test_loader):
             print("iteration: {}\ttotal {} iterations".format(n_iter + 1, len(cifar100_test_loader)))
 
-            if args['gpu']:
+            if gpu:
                 image = image.cuda()
                 label = label.cuda()
 
@@ -57,10 +57,34 @@ def test_model(conv: int, fcl: int, model_path: str, args):
             # compute top1
             correct_1 += correct[:, :1].sum()
 
+    end = time.time()
+    top1 = 1 - correct_1 / len(cifar100_test_loader.dataset)
+    top5 = 1 - correct_5 / len(cifar100_test_loader.dataset)
+    if gpu:
+        print('GPU INFO.....')
+        print(torch.cuda.memory_summary(device=torch.device('cuda')), end='')
+    else:
+        print('CPU INFO.....')
+        print(torch.cuda.memory_summary(device=torch.device('cpu')), end='')
     print()
-    print("Top 1 err: ", 1 - correct_1 / len(cifar100_test_loader.dataset))
-    print("Top 5 err: ", 1 - correct_5 / len(cifar100_test_loader.dataset))
+    print("Top 1 err: ", top1)
+    print("Top 5 err: ", top5)
     print("Parameter numbers: {}".format(sum(p.numel() for p in net.parameters())))
+    duration = end - start
+    print(f'Duration for inference is {duration} seconds')
+
+    # Data to save:
+    # - top1 acc
+    # - top5 acc
+    # - Duration
+    # - Memory used
+    inference_result = {
+        'top1_acc': top1,
+        'top5_acc': top5,
+        'duration_s': duration,
+        'used_memory': 1
+    }
+    return inference_result
 
 
 def next_model(server: str):
@@ -80,7 +104,7 @@ def save_result_to_server(server: str, result_data: json):
     if res.ok:
         print(res.json())
 
-def process_loop(server: str):
+def process_loop(server: str, gpu: bool = False):
     # Check for new model to inference
     # - If so --> Do inference
     # Else timeout
@@ -96,7 +120,7 @@ def process_loop(server: str):
             'b': 128,
             'gpu': False
         }
-        test_model(conv=conv, fcl=fcl, model_path=model_path, args=args)
+        test_model(conv=conv, fcl=fcl, model_path=model_path, args=args, gpu=gpu)
 
         # Save result to server
         data['model_results'] = {'acc': 0.9}
@@ -107,23 +131,27 @@ def process_loop(server: str):
         time.sleep(timeout_duration)
 
 
-def run(server: str):
+def run(server: str, gpu: bool = False):
     print('Stop loop by CTRL+C')
     try:
         while True:
-            process_loop(server)
+            process_loop(server, gpu=gpu)
     except KeyboardInterrupt as ke:
             print('Stopping reconnecting loop by action of user')
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    # parser.add_argument('-net', type=str, required=True, help='net type')
+    parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
+    args = parser.parse_args()
     print('Inference client')
 
     conv = 2
     fcl = 2
     server = 'http://0.0.0.0:5000'
 
-    run(server=server)
+    run(server=server, gpu=args.gpu)
     print('Stopping server')
     # url = f'{server}/next'
     #
