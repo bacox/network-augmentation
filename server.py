@@ -1,16 +1,21 @@
 import json
 from pathlib import Path
+from typing import List
 
-from flask import Flask, request
+from flask import Flask, request, render_template
 from flask import jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_bootstrap import Bootstrap
 
 
 app = Flask(__name__,
                 static_url_path='/models/checkpoint',
-                static_folder='checkpoint')
+                static_folder='checkpoint',
+                template_folder='templates')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///models.db'
+app.config['BOOTSTRAP_SERVE_LOCAL'] = True #This turns file serving static
+bootstrap = Bootstrap(app)
 db = SQLAlchemy(app)
 class Model(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -73,7 +78,7 @@ def dispatch_model(model: Model):
     model.state = 'queued'
     db.session.commit()
 
-def get_all_models():
+def get_all_models() -> List[Model]:
     return Model.query.all()
 
 def get_waiting_models():
@@ -122,6 +127,24 @@ def next_model():
 @app.route('/')
 def hello_world():
     return 'Hello, World!'
+
+@app.route('/models')
+def page_models():
+    user = {'username': 'Miguel'}
+    posts = [
+        {
+            'author': {'username': 'John'},
+            'body': 'Beautiful day in Portland!'
+        },
+        {
+            'author': {'username': 'Susan'},
+            'body': 'The Avengers movie was so cool!'
+        }
+    ]
+    models = get_all_models()
+    json_list = [x.to_json() for x in models]
+    print(json_list)
+    return render_template('models.html', title='Home', user=user, posts=posts, models=json_list)
 
 @app.route('/next')
 def next():

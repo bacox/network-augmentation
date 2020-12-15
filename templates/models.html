@@ -1,0 +1,37 @@
+{% extends 'bootstrap/base.html' %}
+
+{% block title %}
+    {% if title %}{{ title }} - Microblog{% else %}Welcome to Microblog{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+<table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>ArchName</th>
+          <th>State</th>
+          <th>Epochs Trained</th>
+            <th>Model Params</th>
+            <th>Model results</th>
+            <th>Path to Weights</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for model in models %}
+        <tr>
+<!--          <th scope="row">1</th>-->
+          <td>{{ model.id }}</td>
+          <td>{{ model.arch_name}}</td>
+          <td>{{ model.state}}</td>
+          <td>{{ model.trained_epochs}}</td>
+          <td>{{ model.model_params}}</td>
+          <td>{{ model.model_results}}</td>
+          <td>{{ model.path_to_weights}}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+{% endblock %}
