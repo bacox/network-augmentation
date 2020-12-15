@@ -11,19 +11,22 @@ import argparse
 # import resource
 
 
-def load_weights_from_server(model_path: str):
+def load_weights_from_server(model_path: str, gpu: bool = False):
+    device = 'cpu'
+    if gpu:
+        device= None
     server_address = 'http://0.0.0.0:5000'
 
     model_url = f'{server_address}/models/{model_path}'
     print(f'Loading model from {model_url}')
-    state_dict = torch.hub.load_state_dict_from_url(model_url, map_location='cpu')
+    if gpu:
+        state_dict = torch.hub.load_state_dict_from_url(model_url)
+    else:
+        state_dict = torch.hub.load_state_dict_from_url(model_url, map_location='cpu')
 
     return state_dict
 
 
-def nuts(n):
-    yield n
-    yield from nuts(n)
 
 def scoped_memory_track():
     import resource
@@ -42,9 +45,12 @@ def test_model(conv: int, fcl: int, model_path: str, args, gpu: bool = False):
         num_workers=4,
         batch_size=args['b'],
     )
-    weights = load_weights_from_server(model_path)
+    print(f' #2 Running with option GPU={gpu}')
+    weights = load_weights_from_server(model_path, gpu=gpu)
     net, arch_name = construct_vgg_variant(conv_variant=conv, fcl_variant=fcl, batch_norm=True, progress=True,
                                            pretrained=False)
+    if gpu:
+        net.cuda()
     # net.load_state_dict(torch.load(args.weights))
     net.load_state_dict(weights)
 
@@ -174,7 +180,7 @@ if __name__ == '__main__':
     conv = 2
     fcl = 2
     server = 'http://0.0.0.0:5000'
-
+    print(f'Running with option of gpu={args.gpu}')
     run(server=server, gpu=args.gpu)
     print('Stopping server')
     # url = f'{server}/next'
