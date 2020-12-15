@@ -13,7 +13,7 @@ This is my experiment eviroument
 
 Full install command:
 ```bash
-pip3 install tensorboard torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
+pip3 install torch==1.7.1+cu101 torchvision==0.8.2+cu101 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 ```bash
 pip3 install Flask matplotlib flask-bootstrap Flask-SQLAlchemy

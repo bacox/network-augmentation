@@ -99,7 +99,9 @@ def process_loop(server: str):
         test_model(conv=conv, fcl=fcl, model_path=model_path, args=args)
 
         # Save result to server
-        save_result_to_server(server, result_data={'result': 'hello world'})
+        data['model_results'] = {'acc': 0.9}
+        data['path_to_weights'] = data['model_url']
+        save_result_to_server(server, result_data=data)
     else:
         print('No models to inference --> timeout')
         time.sleep(timeout_duration)

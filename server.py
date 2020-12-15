@@ -65,6 +65,25 @@ def parse_pth_to_model(filename: str, path: str):
     model = Model(arch_name=arch_name, model_params=model_params_string, model_results='{}', state='waiting', path_to_weights=path, trained_epochs=epochs)
     return model
 
+def parse_model_from_json(data: json) -> Model:
+    print('Parsing model')
+    print(data)
+    arch_name = data['db_obj']['arch_name']
+    model_params_string = data['db_obj']['model_params']
+    model_results = data['model_results']
+    state = data['db_obj']['state']
+    path = data['db_obj']['path_to_weights']
+    epochs = data['db_obj']['trained_epochs']
+    state = 'finished'
+    model = Model(arch_name=arch_name, model_params=model_params_string, model_results=model_results, state=state, path_to_weights=path, trained_epochs=epochs)
+    return model
+
+def get_model_by_name(name: str) -> Model:
+    model = Model.query.filter_by(arch_name=name).first()
+    # print(f'Found model {model}')
+    # print(f'Model id: {model.id}')
+    return model
+
 def list_all_saved_models(base_path: str):
     p = Path(base_path)
     files = p.glob('*/*/*.pth')
@@ -141,6 +160,8 @@ def page_models():
             'body': 'The Avengers movie was so cool!'
         }
     ]
+    base_path = 'checkpoint'
+    list_all_saved_models(base_path)
     models = get_all_models()
     json_list = [x.to_json() for x in models]
     print(json_list)
@@ -154,7 +175,16 @@ def next():
 @app.route('/save-result', methods=['POST'])
 def result():
     req_data = request.get_json()
-
+    print(req_data)
+    # model = parse_model_from_json(req_data)
+    arch_name = req_data['db_obj']['arch_name']
+    model = get_model_by_name(arch_name)
+    print(f'Found model {model}')
+    print(f'Model id: {model.id}')
+    model.state = 'finished'
+    model.model_results = json.dumps(req_data['model_results'])
+    db.session.commit()
+    print(model)
     # d = next_model()
     return jsonify(req_data)
 
